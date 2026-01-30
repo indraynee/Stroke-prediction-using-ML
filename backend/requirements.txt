@@ -1,0 +1,5 @@
+Django<4.2
+djongo
+djangorestframework
+django-cors-headers
+pymongo==3.12.3
