@@ -3,3 +3,7 @@ djongo
 djangorestframework
 django-cors-headers
 pymongo==3.12.3
+
+scikit-learn
+pandas
+numpy
