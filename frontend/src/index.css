@@ -1,5 +1,28 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+:root {
+  --brand-dark: #030616;      /* Deep Navy (Hero/Headers) */
+  --brand-primary: #5e17eb;   /* Indigo Purple (AI/Buttons) */
+  --brand-secondary: #8ebae2; /* Soft Blue (Highlights) */
+  --brand-bg: #f8f9fa;        /* Light Gray Background */
+  font-family: 'Inter', sans-serif;
+}
+
+/* Add this to keep the "Highlighter" consistent */
+.highlighter::after {
+  content: "";
+  position: absolute;
+  width: 110%;
+  height: 60%;
+  background-color: #fef08a; 
+  left: -5%;
+  bottom: 10%;
+  z-index: -1;
+  transform: rotate(-1deg);
+  border-radius: 20% 80% 20% 80%;
+  opacity: 0.7;
+}
 @keyframes heartbeat {
   0% { transform: scale(1); }
   50% { transform: scale(1.1); }
@@ -8,6 +31,46 @@
 
 .animate-heart {
   animation: heartbeat 2s ease-in-out infinite;
-  display: inline-block; /* Ensures transform works correctly */
-  will-change: transform; /* Makes the animation smoother */
+  display: inline-block;
+  will-change: transform;
+}
+
+@keyframes move-up {
+  from { background-position: 0 0; }
+  to { background-position: 0 -40px; }
+}
+
+.animate-dots {
+  background-color: #ffffff;
+  background-image: radial-gradient(#e5e7eb 1.5px, transparent 1.5px);
+  background-size: 40px 40px;
+  animation: move-up 10s linear infinite;
+}
+
+.highlighter {
+  position: relative;
+  display: inline-block;
+}
+
+.highlighter::after {
+  content: "";
+  position: absolute;
+  width: 110%;
+  height: 60%;
+  background-color: #fef08a; 
+  left: -5%;
+  bottom: 10%;
+  z-index: -1;
+  transform: rotate(-1deg);
+  border-radius: 20% 80% 20% 80%;
+  opacity: 0.7;
+}
+
+.chat-bubble {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  border-top-left-radius: 2px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
 }

@@ -5,7 +5,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import DashboardHome from "./pages/DashboardHome";
 import Predict from "./pages/Predict";
-import PredictionPage from "./pages/PredictionPage";
+
 
 function App() {
   return (
