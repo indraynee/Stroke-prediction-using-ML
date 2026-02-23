@@ -2,6 +2,7 @@ flask
 flask-cors
 flask-jwt-extended
 pymongo
+certifi
 shap
 joblib
 pandas
