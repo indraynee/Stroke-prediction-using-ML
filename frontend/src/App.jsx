@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import Signup from "./pages/Signup";
 import DashboardHome from "./pages/DashboardHome";
 import Predict from "./pages/Predict";
 
@@ -10,12 +11,13 @@ import Predict from "./pages/Predict";
 function App() {
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-[#f8f9fa]"> 
-        
+      <div className="flex flex-col min-h-screen bg-[#f8f9fa]">
+
         <main className="flex-grow w-full">
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Auth />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<DashboardHome />} />
             <Route path="/predict" element={<Predict />} />
           </Routes>

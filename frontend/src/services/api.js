@@ -1,14 +1,29 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL,
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-export const getItems = () => api.get('/items/');
-export const createItem = (item) => api.post('/items/', item);
-export const predictRisk = (data) => api.post('/prediction/predict/', data);
+// Add a request interceptor to include JWT token
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+export const login = (credentials) => api.post('/login', credentials);
+export const register = (userData) => api.post('/register', userData);
+export const predictRisk = (data) => api.post('/predict/', data);
+export const getHistory = () => api.get('/history/');
 
 export default api;
