@@ -4,6 +4,7 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from auth import auth_bp
 from predictor_routes import predictor_bp
+from admin_routes import admin_bp
 
 def create_app():
     app = Flask(__name__)
@@ -17,6 +18,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(predictor_bp, url_prefix='/api')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
     @app.route('/')
     def index():

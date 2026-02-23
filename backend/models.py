@@ -33,7 +33,8 @@ class PredictionHistory:
             "shap_values": shap_values,
             "created_at": datetime.datetime.utcnow()
         }
-        _collection.insert_one(record)
+        result = _collection.insert_one(record)
+        record['_id'] = result.inserted_id
         return record
 
     @staticmethod
@@ -47,4 +48,31 @@ class PredictionHistory:
                 item['created_at'] = item['created_at'].isoformat()
             items.append(item)
         return items
+
+    @staticmethod
+    def delete_by_id(prediction_id: str, user_id: str):
+        """Delete a prediction if it belongs to the user."""
+        from bson.objectid import ObjectId
+        try:
+            result = _collection.delete_one({
+                "_id": ObjectId(prediction_id),
+                "user": user_id
+            })
+            return result.deleted_count > 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_by_id(prediction_id: str):
+        """Get a single prediction by ID (for sharing)."""
+        from bson.objectid import ObjectId
+        try:
+            prediction = _collection.find_one({"_id": ObjectId(prediction_id)})
+            if prediction:
+                prediction['_id'] = str(prediction['_id'])
+                if isinstance(prediction.get('created_at'), datetime.datetime):
+                    prediction['created_at'] = prediction['created_at'].isoformat()
+            return prediction
+        except Exception:
+            return None
 

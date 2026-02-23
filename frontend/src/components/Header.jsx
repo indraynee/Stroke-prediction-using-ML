@@ -19,6 +19,12 @@ const Header = () => {
           <Link to="/about" className="text-sm hover:text-[#8ebae2] transition">AboutUs</Link>
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
+              <Link 
+                to="/profile" 
+                className="text-sm hover:text-[#8ebae2] transition hidden md:inline"
+              >
+                Profile
+              </Link>
               <span className="text-sm text-[#8ebae2] font-medium hidden md:inline">Hi, {username}</span>
               <button
                 onClick={handleLogout}

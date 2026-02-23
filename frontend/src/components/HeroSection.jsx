@@ -1,7 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import heartImg from '../assets/heart_image.png';
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
   return (
     <section className="w-full bg-[#030616] text-white overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -24,9 +28,21 @@ const HeroSection = () => {
             Redefine healthcare with AI—experience the power of faster 
             diagnostics and precisely tailored treatments.
           </p>
-          <button className="bg-[#8ebae2] text-[#050a1e] px-10 py-4 rounded-lg font-bold hover:bg-[#a5c9eb] transition-all">
-            Sign up for test
-          </button>
+          {isLoggedIn ? (
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="bg-[#8ebae2] text-[#050a1e] px-10 py-4 rounded-lg font-bold hover:bg-[#a5c9eb] transition-all"
+            >
+              Go to Dashboard
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/signup')}
+              className="bg-[#8ebae2] text-[#050a1e] px-10 py-4 rounded-lg font-bold hover:bg-[#a5c9eb] transition-all"
+            >
+              Sign up for test
+            </button>
+          )}
         </div>
         
         <div className="flex justify-center items-center">

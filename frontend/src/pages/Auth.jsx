@@ -27,7 +27,14 @@ const Auth = () => {
         localStorage.setItem("username", response.data.username || username);
         localStorage.setItem("user_id", response.data.user_id);
         localStorage.setItem("isLoggedIn", "true");
-        navigate("/dashboard");
+        
+        // Redirect based on role
+        const userRole = response.data.role || 'user';
+        if (userRole === 'admin') {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err) {
       setError(
@@ -96,6 +103,15 @@ const Auth = () => {
                   {error}
                 </p>
               )}
+
+              <div className="text-right mb-4">
+                <span
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-sm text-indigo-600 hover:underline cursor-pointer"
+                >
+                  Forgot password?
+                </span>
+              </div>
 
               <button
                 type="submit"

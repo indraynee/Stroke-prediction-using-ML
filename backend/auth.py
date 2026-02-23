@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo import MongoClient
 from config import Config
+from security import rate_limit
 
 auth_bp = Blueprint('auth', __name__)
 client = MongoClient(Config.MONGO_URI)
@@ -10,6 +11,7 @@ db = client[Config.DB_NAME]
 users_collection = db['users']
 
 @auth_bp.route('/register', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=3600)  # 5 registrations per hour
 def register():
     data = request.get_json()
     username = data.get('username')
@@ -38,6 +40,7 @@ def register():
     }), 201
 
 @auth_bp.route('/login', methods=['POST'])
+@rate_limit(max_requests=10, window_seconds=300)  # 10 login attempts per 5 minutes
 def login():
     data = request.get_json()
     username = data.get('username')
@@ -46,14 +49,23 @@ def login():
     if not username or not password:
         return jsonify({"msg": "Username and password required"}), 400
 
-    found_user = users_collection.find_one({"username": username})
+    # Check by username OR email
+    found_user = users_collection.find_one({
+        "$or": [
+            {"username": username},
+            {"email": username}  # Allow login with email
+        ]
+    })
+    
     if found_user and check_password_hash(found_user['password'], password):
-        access_token = create_access_token(identity=username)
-        print(f"User {username} logged in successfully")
+        identity = found_user.get('email') or found_user.get('username')
+        access_token = create_access_token(identity=identity)
+        print(f"User {identity} logged in successfully")
         return jsonify({
             "access_token": access_token,
             "user_id": str(found_user['_id']),
-            "username": found_user['username']
+            "username": found_user.get('username') or found_user.get('email'),
+            "role": found_user.get('role', 'user')  # Return user role
         }), 200
 
     print(f"Failed login attempt for user: {username}")
@@ -68,3 +80,68 @@ def get_me():
         user['_id'] = str(user['_id'])
         return jsonify(user), 200
     return jsonify({"msg": "User not found"}), 404
+
+@auth_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    """Get current user's profile"""
+    current_user = get_jwt_identity()
+    user = users_collection.find_one({"username": current_user}, {"password": 0})
+    if user:
+        user['_id'] = str(user['_id'])
+        return jsonify(user), 200
+    return jsonify({"msg": "User not found"}), 404
+
+@auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """Update current user's profile"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    
+    # Fields that can be updated
+    allowed_fields = ['email', 'full_name', 'age', 'phone', 'address', 'bio']
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    
+    if not update_data:
+        return jsonify({"msg": "No valid fields to update"}), 400
+    
+    result = users_collection.update_one(
+        {"username": current_user},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count > 0 or result.matched_count > 0:
+        user = users_collection.find_one({"username": current_user}, {"password": 0})
+        user['_id'] = str(user['_id'])
+        return jsonify({"msg": "Profile updated successfully", "user": user}), 200
+    
+    return jsonify({"msg": "User not found"}), 404
+
+@auth_bp.route('/change-password', methods=['POST'])
+@jwt_required()
+def change_password():
+    """Change user password"""
+    current_user = get_jwt_identity()
+    data = request.get_json()
+    
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    
+    if not old_password or not new_password:
+        return jsonify({"msg": "Old and new password required"}), 400
+    
+    user = users_collection.find_one({"username": current_user})
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+    
+    if not check_password_hash(user['password'], old_password):
+        return jsonify({"msg": "Incorrect old password"}), 401
+    
+    hashed_password = generate_password_hash(new_password)
+    users_collection.update_one(
+        {"username": current_user},
+        {"$set": {"password": hashed_password}}
+    )
+    
+    return jsonify({"msg": "Password changed successfully"}), 200

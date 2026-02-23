@@ -9,6 +9,11 @@ import {
   TestTube,
   Settings,
   Plus,
+  History,
+  UserCircle,
+  BookOpen,
+  BarChart3,
+  Shield,
 } from "lucide-react";
 
 import {
@@ -21,12 +26,16 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
+import { getProfile, getHistory } from "../services/api";
 
 const DashboardHome = () => {
   const navigate = useNavigate();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedModel, setSelectedModel] = useState("heart");
+  const [userRole, setUserRole] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // 🔹 Risk Data (Later fetch from backend)
   const [riskData, setRiskData] = useState({
@@ -43,12 +52,31 @@ const DashboardHome = () => {
     { feature: "Glucose", heart: -0.04, stroke: 0.16 },
   ]);
 
-  // 🔹 History Data (Ready for backend)
-  const [history, setHistory] = useState([
-    { id: 1, date: "20 Nov 2025", heart: "68%", stroke: "29%" },
-    { id: 2, date: "05 Dec 2025", heart: "74%", stroke: "34%" },
-    { id: 3, date: "02 Jan 2026", heart: "61%", stroke: "22%" },
-  ]);
+  // Fetch user role and history on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch user profile and role
+        const profileResponse = await getProfile();
+        setUserRole(profileResponse.data.role || 'user');
+        
+        // Fetch prediction history
+        const historyResponse = await getHistory();
+        const recentHistory = historyResponse.data.slice(0, 5).map(record => ({
+          id: record._id,
+          date: new Date(record.created_at).toLocaleDateString(),
+          risk: `${(record.probability * 100).toFixed(0)}%`,
+          prediction: record.prediction === 1 ? 'High Risk' : 'Low Risk'
+        }));
+        setHistory(recentHistory);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const formattedData = shapData
     .map((item) => ({
@@ -83,6 +111,38 @@ const DashboardHome = () => {
               isCollapsed={isCollapsed}
               onClick={() => navigate("/predict")}
             />
+            <NavItem
+              icon={<History size={20} />}
+              label="History"
+              isCollapsed={isCollapsed}
+              onClick={() => navigate("/history")}
+            />
+            <NavItem
+              icon={<BarChart3 size={20} />}
+              label="Analytics"
+              isCollapsed={isCollapsed}
+              onClick={() => navigate("/analytics")}
+            />
+            <NavItem
+              icon={<UserCircle size={20} />}
+              label="Profile"
+              isCollapsed={isCollapsed}
+              onClick={() => navigate("/profile")}
+            />
+            <NavItem
+              icon={<BookOpen size={20} />}
+              label="Health Tips"
+              isCollapsed={isCollapsed}
+              onClick={() => navigate("/health-tips")}
+            />
+            {userRole === 'admin' && (
+              <NavItem
+                icon={<Shield size={20} />}
+                label="Admin Panel"
+                isCollapsed={isCollapsed}
+                onClick={() => navigate("/admin")}
+              />
+            )}
             <NavItem
               icon={<Settings size={20} />}
               label="Settings"
@@ -219,20 +279,53 @@ const DashboardHome = () => {
           {/* RIGHT SECTION - HISTORY */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-2xl p-6 shadow border border-gray-100 sticky top-8">
-              <h3 className="font-bold text-gray-800 mb-6">
-                Previous Predictions
-              </h3>
-
-              <div className="space-y-5">
-                {history.map((item) => (
-                  <div key={item.id} className="border-b pb-3">
-                    <p className="text-xs text-gray-400">{item.date}</p>
-                    <p className="text-sm font-semibold text-gray-800">
-                      ❤️ {item.heart} | 🧠 {item.stroke}
-                    </p>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-800">
+                  Previous Predictions
+                </h3>
+                <button
+                  onClick={() => navigate('/history')}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View All
+                </button>
               </div>
+
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p className="mb-3">No predictions yet</p>
+                  <button
+                    onClick={() => navigate('/predict')}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    Make your first prediction
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((item) => (
+                    <div key={item.id} className="border-b pb-3 last:border-b-0">
+                      <p className="text-xs text-gray-400 mb-1">{item.date}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-800">
+                          Risk: {item.risk}
+                        </p>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          item.prediction === 'High Risk' 
+                            ? 'bg-red-100 text-red-600' 
+                            : 'bg-green-100 text-green-600'
+                        }`}>
+                          {item.prediction}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

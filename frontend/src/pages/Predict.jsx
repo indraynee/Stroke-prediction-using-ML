@@ -1,10 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { predictRisk } from '../services/api';
+import SHAPVisualization from '../components/SHAPVisualization';
+import ShareModal from '../components/ShareModal';
+import { Share2, Printer } from 'lucide-react';
+
+const normalizeSmokingStatus = (value) => {
+  if (!value) return 'never smoked';
+  const v = value.toLowerCase();
+  if (v.includes('never')) return 'never smoked';
+  if (v.includes('former')) return 'formerly smoked';
+  if (v.includes('smoke')) return 'smokes';
+  return 'Unknown';
+};
 
 const Predict = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [formData, setFormData] = useState({});
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [result, setResult] = useState(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [predictionId, setPredictionId] = useState(null);
   
   // Animation state for typing effect
   const [displayedText, setDisplayedText] = useState("");
@@ -42,26 +62,59 @@ const Predict = () => {
   const stepData = steps[currentStep];
   const progress = ((currentStep + 1) / steps.length) * 100;
 
-// Typing Effect Logic
+  // Typing Effect Logic
   useEffect(() => {
-    setDisplayedText(""); // Reset text when step changes
+    const fullText = stepData.msg || "";
+    setDisplayedText("");
     setIsTyping(true);
-    let i = 0; // <--- MAKE SURE THIS STARTS AT 0
-    const fullText = stepData.msg;
-    
+
+    let i = 0;
     const typingInterval = setInterval(() => {
-      // Use fullText.charAt(i) to get every letter including the first one
-      setDisplayedText((prev) => prev + fullText.charAt(i));
+      // Always show text from the beginning up to i (prevents missing first word issues)
+      setDisplayedText(fullText.slice(0, i + 1));
       i++;
-      
+
       if (i >= fullText.length) {
         clearInterval(typingInterval);
         setIsTyping(false);
       }
-    }, 30); 
+    }, 30);
 
     return () => clearInterval(typingInterval);
   }, [currentStep, stepData.msg]);
+
+  const submitAnalysis = async (finalData) => {
+    setLoading(true);
+    setSubmitError("");
+    setResult(null);
+
+    try {
+      const payload = {
+        age: Number(finalData.age),
+        gender: finalData.gender,
+        bmi: Number(finalData.bmi),
+        Residence_type: finalData.residence_type,
+        work_type: finalData.work_type,
+        ever_married: finalData.ever_married,
+        hypertension: finalData.hypertension === 'Yes' ? 1 : 0,
+        heart_disease: finalData.heart_disease === 'Yes' ? 1 : 0,
+        avg_glucose_level: Number(finalData.avg_glucose_level),
+        smoking_status: normalizeSmokingStatus(finalData.smoking_status),
+      };
+
+      const response = await predictRisk(payload);
+      setResult(response.data);
+    } catch (err) {
+      console.error(err);
+      if (err.response?.status === 401) {
+        setSubmitError('You must be logged in to get a prediction.');
+      } else {
+        setSubmitError('Failed to get prediction. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNext = (val) => {
     const value = val || inputValue;
@@ -73,14 +126,16 @@ const Predict = () => {
       }
     }
 
-    setFormData({ ...formData, [stepData.id]: value });
+    const newFormData = { ...formData, [stepData.id]: value };
+    setFormData(newFormData);
     setInputValue("");
     setError("");
 
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      alert("Analysis Submitted!");
+      // Last step – submit to backend
+      submitAnalysis(newFormData);
     }
   };
 
@@ -138,13 +193,96 @@ const Predict = () => {
               />
               <button 
                 onClick={() => handleNext()}
-                className="bg-[#5e17eb] text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-[#4a11b8] shadow-lg transition-all"
+                disabled={loading}
+                className="bg-[#5e17eb] text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-[#4a11b8] shadow-lg transition-all disabled:opacity-60"
               >
-                Next
+                {loading ? 'Submitting...' : currentStep === steps.length - 1 ? 'Submit' : 'Next'}
               </button>
             </div>
           )}
         </div>
+
+        {/* 5. Server feedback */}
+        {submitError && (
+          <div className="mt-4 text-red-600 text-sm font-semibold text-center">
+            {submitError}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-10 w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+            <h2 className="text-2xl font-bold text-[#5e17eb] mb-2">
+              Prediction Result
+            </h2>
+            <p className="text-gray-700 mb-2">
+              Overall risk:{" "}
+              <span className={`font-bold ${result.prediction === 1 ? 'text-red-600' : 'text-green-600'}`}>
+                {result.prediction === 1 ? 'High' : 'Low'} Risk
+              </span>
+            </p>
+            <p className="text-gray-700 mb-4">
+              Probability: <span className="font-semibold">{(result.probability * 100).toFixed(1)}%</span>
+            </p>
+
+            {Array.isArray(result.suggestions) && result.suggestions.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-800 mb-1">Personalized Suggestions:</h3>
+                <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+                  {result.suggestions.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {result.shap_values && !result.shap_values.error && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <SHAPVisualization shapValues={result.shap_values} />
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-between items-center">
+              <div className="flex gap-3">
+                {predictionId && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShareModalOpen(true)}
+                      className="px-6 py-3 rounded-xl bg-[#8ebae2] text-white font-semibold text-sm hover:bg-[#a5c9eb] shadow-md transition-all flex items-center gap-2"
+                    >
+                      <Share2 size={18} />
+                      Share
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/share/${predictionId}`, '_blank')}
+                      className="px-6 py-3 rounded-xl border-2 border-[#8ebae2] text-[#8ebae2] font-semibold text-sm hover:bg-[#8ebae2] hover:text-white shadow-md transition-all flex items-center gap-2"
+                    >
+                      <Printer size={18} />
+                      Print
+                    </button>
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="px-6 py-3 rounded-xl bg-[#5e17eb] text-white font-semibold text-sm hover:bg-[#4a11b8] shadow-md transition-all"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Share Modal */}
+        {predictionId && (
+          <ShareModal
+            predictionId={predictionId}
+            isOpen={shareModalOpen}
+            onClose={() => setShareModalOpen(false)}
+          />
+        )}
       </div>
     </div>
   );
