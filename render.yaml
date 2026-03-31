@@ -3,7 +3,7 @@ services:
     name: strokenova
     runtime: python
     buildCommand: "chmod +x build.sh && ./build.sh"
-    startCommand: "cd backend && gunicorn app:create_app() --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    startCommand: "cd backend && gunicorn 'app:create_app()' --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
     envVars:
       - key: MONGO_URI
         sync: false
