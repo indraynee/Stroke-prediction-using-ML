@@ -3,12 +3,10 @@ flask-cors
 flask-jwt-extended
 pymongo
 certifi
-shap
-joblib
-pandas
-numpy
 dnspython
 gunicorn
 scikit-learn
-xgboost
-werkzeug
+joblib
+pandas
+numpy
+shap
