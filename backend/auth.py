@@ -1,15 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-from pymongo import MongoClient
-import certifi
 from config import Config
 from security import rate_limit
+from db import db
 
 auth_bp = Blueprint('auth', __name__)
-# Use certifi CA bundle to avoid TLS handshake issues with Atlas.
-client = MongoClient(Config.MONGO_URI, tlsCAFile=certifi.where())
-db = client[Config.DB_NAME]
 users_collection = db['users']
 
 @auth_bp.route('/register', methods=['POST'])

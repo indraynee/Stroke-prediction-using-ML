@@ -1,12 +1,12 @@
 import os
 from datetime import timedelta
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
-    MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
-    DB_NAME = os.environ.get('DB_NAME', 'strokenova_db')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
+    SECRET_KEY = 'strokenova-secret-key-2024'
+    
+    # MongoDB Atlas connection string — replace with your Atlas URI
+    MONGO_URI = 'mongodb+srv://indrayaneesawant_db_user:ESfRX4t1mZLDAcCW@cluster0.5jzkid2.mongodb.net/?appName=Cluster0'
+    DB_NAME = 'strokenova_db'
+    
+    JWT_SECRET_KEY = 'strokenova-jwt-secret-2024'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)

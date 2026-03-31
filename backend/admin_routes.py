@@ -4,16 +4,14 @@ Requires admin role for access
 """
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from pymongo import MongoClient, DESCENDING
+from pymongo import DESCENDING
 from datetime import datetime, timedelta
 from config import Config
 from functools import wraps
+from db import db
 
 admin_bp = Blueprint('admin', __name__)
 
-# MongoDB connection
-client = MongoClient(Config.MONGO_URI)
-db = client[Config.DB_NAME]
 users_collection = db['users']
 predictions_collection = db['prediction_history']
 

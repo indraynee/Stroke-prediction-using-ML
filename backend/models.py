@@ -2,11 +2,8 @@
 PredictionHistory model for storing stroke risk predictions.
 """
 import datetime
-from pymongo import MongoClient
-from config import Config
+from db import db
 
-client = MongoClient(Config.MONGO_URI)
-db = client[Config.DB_NAME]
 _collection = db['prediction_history']
 
 

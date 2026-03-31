@@ -11,10 +11,17 @@ venv/
 
 # ML / Data
 *.csv
-*.pkl
 *.h5
-*.joblib
+
+# Allow model files (needed for deployment)
+# *.pkl  — uncomment to ignore pickle files
+# *.joblib — uncomment to ignore joblib files
+
+# Frontend build output (generated during deploy)
+frontend/dist/
+backend/dist/
 
 # OS
 .DS_Store
 Thumbs.db
+

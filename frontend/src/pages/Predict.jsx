@@ -104,6 +104,7 @@ const Predict = () => {
 
       const response = await predictRisk(payload);
       setResult(response.data);
+      setPredictionId(response.data.prediction_id);
     } catch (err) {
       console.error(err);
       if (err.response?.status === 401) {
