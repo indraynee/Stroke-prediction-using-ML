@@ -3,7 +3,7 @@ services:
     name: strokenova
     runtime: python
     buildCommand: "chmod +x build.sh && ./build.sh"
-    startCommand: "cd backend && gunicorn 'app:create_app()' --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    startCommand: "cd backend && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
     envVars:
       - key: MONGO_URI
         sync: false
@@ -14,6 +14,6 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.11.11"
       - key: NODE_VERSION
         value: "20"
