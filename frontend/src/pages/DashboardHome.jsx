@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Bell,
   Menu,
   Heart,
   Brain,
   LayoutDashboard,
   TestTube,
-  Settings,
+  LogOut,
   Plus,
   History,
   UserCircle,
@@ -32,27 +31,22 @@ const DashboardHome = () => {
   const navigate = useNavigate();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("heart");
+  const [selectedModel, setSelectedModel] = useState("stroke");
   const [userRole, setUserRole] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [suggestions, setSuggestions] = useState([]);
 
-  // 🔹 Risk Data (Later fetch from backend)
+  // Risk Data — from latest prediction
   const [riskData, setRiskData] = useState({
-    heart: 0.72,
-    stroke: 0.31,
+    heart: null,
+    stroke: null,
   });
 
-  // 🔹 SHAP Data (Later from backend)
-  const [shapData, setShapData] = useState([
-    { feature: "Age", heart: 0.18, stroke: 0.07 },
-    { feature: "Cholesterol", heart: 0.12, stroke: -0.05 },
-    { feature: "BMI", heart: 0.22, stroke: 0.28 },
-    { feature: "Blood Pressure", heart: 0.15, stroke: 0.11 },
-    { feature: "Glucose", heart: -0.04, stroke: 0.16 },
-  ]);
+  // SHAP Data — from latest prediction
+  const [shapData, setShapData] = useState([]);
 
-  // Fetch user role and history on mount
+  // Fetch user role, history, and compute dashboard data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -62,13 +56,106 @@ const DashboardHome = () => {
         
         // Fetch prediction history
         const historyResponse = await getHistory();
-        const recentHistory = historyResponse.data.slice(0, 5).map(record => ({
-          id: record._id,
-          date: new Date(record.created_at).toLocaleDateString(),
-          risk: `${(record.probability * 100).toFixed(0)}%`,
-          prediction: record.prediction === 1 ? 'High Risk' : 'Low Risk'
-        }));
+        const allHistory = historyResponse.data;
+
+        // Build recent history for sidebar
+        const recentHistory = allHistory.slice(0, 5).map(record => {
+          const prob = record.probability;
+          let riskLabel = 'Low Risk';
+          if (prob >= 0.6) riskLabel = 'High Risk';
+          else if (prob >= 0.3) riskLabel = 'Medium Risk';
+          return {
+            id: record._id,
+            date: new Date(record.created_at).toLocaleDateString(),
+            risk: `${(prob * 100).toFixed(0)}%`,
+            prediction: riskLabel
+          };
+        });
         setHistory(recentHistory);
+
+        // Use latest prediction for risk cards and SHAP chart
+        if (allHistory.length > 0) {
+          const latest = allHistory[0]; // Most recent prediction
+
+          // Set stroke risk from latest prediction
+          setRiskData({
+            stroke: latest.probability || 0,
+            heart: latest.probability ? latest.probability * 0.8 : 0,
+          });
+
+          // Build chart data — try SHAP values first, fall back to patient parameters
+          let chartEntries = [];
+
+          // Check if we have valid SHAP values (not error/note)
+          if (latest.shap_values && typeof latest.shap_values === 'object') {
+            // Skip non-medical and non-useful features
+            const skipFeatures = ['gender', 'work_type', 'ever_married', 'residence_type', 'age'];
+
+            // Clean feature name mapping
+            const labelMap = {
+              'bmi': 'Body Mass Index',
+              'hypertension': 'Hypertension',
+              'heart_disease': 'Heart Disease',
+              'avg_glucose_level': 'Blood Glucose',
+            };
+
+            const rawEntries = Object.entries(latest.shap_values)
+              .filter(([key]) => key !== 'error' && key !== 'note')
+              .filter(([key]) => !skipFeatures.some(skip => key.toLowerCase().includes(skip)));
+
+            // Consolidate smoking status variants into one entry
+            let smokingTotal = 0;
+            let smokingCount = 0;
+            const nonSmokingEntries = [];
+
+            rawEntries.forEach(([feature, value]) => {
+              let numValue = 0;
+              if (typeof value === 'number') numValue = value;
+              else if (Array.isArray(value) && value.length >= 2) numValue = value[1];
+              else if (Array.isArray(value) && value.length === 1) numValue = value[0];
+
+              if (feature.toLowerCase().includes('smoking')) {
+                smokingTotal += Math.abs(numValue);
+                smokingCount++;
+              } else {
+                const label = labelMap[feature] || feature
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, c => c.toUpperCase());
+                nonSmokingEntries.push({ feature: label, value: numValue });
+              }
+            });
+
+            // Add consolidated smoking entry
+            if (smokingCount > 0) {
+              nonSmokingEntries.push({ feature: 'Smoking Impact', value: smokingTotal });
+            }
+
+            if (nonSmokingEntries.length > 0) {
+              chartEntries = nonSmokingEntries
+                .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+                .slice(0, 6);
+            }
+          }
+
+          // Fallback: use patient input parameters as chart data
+          if (chartEntries.length === 0) {
+            chartEntries = [
+              { feature: 'Age', value: latest.age || 0 },
+              { feature: 'BMI', value: latest.bmi || 0 },
+              { feature: 'Glucose Level', value: latest.avg_glucose_level || 0 },
+              { feature: 'Hypertension', value: latest.hypertension ? 1 : 0 },
+              { feature: 'Heart Disease', value: latest.heart_disease ? 1 : 0 },
+            ].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+          }
+
+          setShapData(chartEntries);
+
+          // Set suggestions from latest prediction if available
+          if (latest.suggestions && Array.isArray(latest.suggestions) && latest.suggestions.length > 0) {
+            setSuggestions(latest.suggestions);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('Failed to fetch data:', err);
@@ -78,12 +165,9 @@ const DashboardHome = () => {
     fetchData();
   }, []);
 
-  const formattedData = shapData
-    .map((item) => ({
-      feature: item.feature,
-      value: item[selectedModel],
-    }))
-    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  const formattedData = shapData.length > 0
+    ? shapData
+    : [{ feature: "No data yet", value: 0 }];
 
   return (
     <div className="flex min-h-screen bg-[#eef2f7]">
@@ -144,9 +228,14 @@ const DashboardHome = () => {
               />
             )}
             <NavItem
-              icon={<Settings size={20} />}
-              label="Settings"
+              icon={<LogOut size={20} />}
+              label="Logout"
               isCollapsed={isCollapsed}
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('isLoggedIn');
+                navigate('/login');
+              }}
             />
           </nav>
         </div>
@@ -212,28 +301,7 @@ const DashboardHome = () => {
                 <h3 className="font-bold text-gray-800">
                   Explainable AI – Feature Contribution
                 </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedModel("heart")}
-                    className={`px-4 py-1 rounded-full text-sm ${
-                      selectedModel === "heart"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    Heart
-                  </button>
-                  <button
-                    onClick={() => setSelectedModel("stroke")}
-                    className={`px-4 py-1 rounded-full text-sm ${
-                      selectedModel === "stroke"
-                        ? "bg-purple-600 text-white"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    Stroke
-                  </button>
-                </div>
+                <span className="text-sm text-gray-400">From latest prediction</span>
               </div>
 
               <div className="h-[300px]">
@@ -268,10 +336,16 @@ const DashboardHome = () => {
               </h3>
 
               <div className="space-y-4">
-                <Suggestion text="🥗 Adopt Mediterranean diet (rich in fruits & omega-3)" />
-                <Suggestion text="🏃 150 minutes moderate exercise weekly" />
-                <Suggestion text="🧂 Reduce sodium & processed sugar intake" />
-                <Suggestion text="😴 Maintain 7–8 hours of quality sleep" />
+                {suggestions.length > 0 ? (
+                  suggestions.map((s, i) => <Suggestion key={i} text={s} />)
+                ) : (
+                  <>
+                    <Suggestion text="🥗 Adopt Mediterranean diet (rich in fruits & omega-3)" />
+                    <Suggestion text="🏃 150 minutes moderate exercise weekly" />
+                    <Suggestion text="🧂 Reduce sodium & processed sugar intake" />
+                    <Suggestion text="😴 Maintain 7–8 hours of quality sleep" />
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -317,6 +391,8 @@ const DashboardHome = () => {
                         <span className={`text-xs px-2 py-1 rounded ${
                           item.prediction === 'High Risk' 
                             ? 'bg-red-100 text-red-600' 
+                            : item.prediction === 'Medium Risk'
+                            ? 'bg-yellow-100 text-yellow-600'
                             : 'bg-green-100 text-green-600'
                         }`}>
                           {item.prediction}
@@ -351,7 +427,8 @@ const NavItem = ({ icon, label, isCollapsed, active = false, onClick }) => (
 
 /* Risk Card */
 const RiskCard = ({ title, value, icon, color }) => {
-  const percent = Math.round(value * 100);
+  const hasData = value !== null && value !== undefined;
+  const percent = hasData ? Math.round(value * 100) : null;
   return (
     <div
       className={`bg-gradient-to-r ${color} text-white rounded-2xl p-6 shadow-md`}
@@ -360,7 +437,9 @@ const RiskCard = ({ title, value, icon, color }) => {
         <span className="text-sm uppercase">{title}</span>
         {icon}
       </div>
-      <div className="text-4xl font-bold">{percent}%</div>
+      <div className="text-4xl font-bold">
+        {hasData ? `${percent}%` : <span className="text-2xl opacity-70">No data yet</span>}
+      </div>
     </div>
   );
 };

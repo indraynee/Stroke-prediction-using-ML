@@ -217,8 +217,10 @@ const Predict = () => {
             </h2>
             <p className="text-gray-700 mb-2">
               Overall risk:{" "}
-              <span className={`font-bold ${result.prediction === 1 ? 'text-red-600' : 'text-green-600'}`}>
-                {result.prediction === 1 ? 'High' : 'Low'} Risk
+              <span className={`font-bold ${
+                result.probability >= 0.6 ? 'text-red-600' : result.probability >= 0.3 ? 'text-yellow-600' : 'text-green-600'
+              }`}>
+                {result.probability >= 0.6 ? 'High' : result.probability >= 0.3 ? 'Medium' : 'Low'} Risk
               </span>
             </p>
             <p className="text-gray-700 mb-4">

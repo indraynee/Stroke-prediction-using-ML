@@ -8,54 +8,67 @@ const SHAPVisualization = React.memo(({ shapValues }) => {
       return [];
     }
 
-    return Object.entries(shapValues)
-      .map(([feature, value]) => {
-        // Clean up feature names for better display
-        let cleanFeature = feature;
-        
-        // Remove 'cat_' prefix from categorical features
-        cleanFeature = cleanFeature.replace(/^cat_/i, '');
-        
-        // Replace underscores with spaces
-        cleanFeature = cleanFeature.replace(/_/g, ' ');
-        
-        // Capitalize first letter of each word
-        cleanFeature = cleanFeature.replace(/\b\w/g, (l) => l.toUpperCase());
-        
-        // Handle specific abbreviations
-        cleanFeature = cleanFeature
-          .replace(/Bmi/g, 'BMI')
-          .replace(/Avg/g, 'Average');
-        
-        // Shorten specific long names
-        const shortenMap = {
-          'Residence Type Urban': 'Residence: Urban',
-          'Residence Type Rural': 'Residence: Rural',
-          'Ever Married Yes': 'Married: Yes',
-          'Ever Married No': 'Married: No',
-          'Gender Female': 'Gender: Female',
-          'Gender Male': 'Gender: Male',
-          'Smoking Status': 'Smoking',
-          'Work Type': 'Work',
-          'Average Glucose Level': 'Avg Glucose'
-        };
-        
-        cleanFeature = shortenMap[cleanFeature] || cleanFeature;
-        
-        // Final length check - truncate if still too long
-        if (cleanFeature.length > 18) {
-          cleanFeature = cleanFeature.substring(0, 15) + '...';
-        }
-        
-        return {
+    // Skip non-medical features
+    const skipFeatures = ['gender', 'work_type', 'ever_married', 'residence_type', 'age'];
+
+    // Clean label mapping
+    const labelMap = {
+      'bmi': 'Body Mass Index',
+      'hypertension': 'Hypertension',
+      'heart_disease': 'Heart Disease',
+      'avg_glucose_level': 'Blood Glucose',
+    };
+
+    let smokingTotal = 0;
+    let smokingCount = 0;
+    const entries = [];
+
+    Object.entries(shapValues).forEach(([feature, value]) => {
+      // Skip error/note/non-medical
+      if (feature === 'error' || feature === 'note') return;
+      if (skipFeatures.some(skip => feature.toLowerCase().includes(skip))) return;
+
+      // Extract numeric value (handle arrays)
+      let numValue = 0;
+      if (typeof value === 'number') {
+        numValue = value;
+      } else if (Array.isArray(value) && value.length >= 2) {
+        numValue = value[1]; // Class 1 (risk class)
+      } else if (Array.isArray(value) && value.length === 1) {
+        numValue = value[0];
+      }
+
+      // Consolidate smoking variants
+      if (feature.toLowerCase().includes('smoking')) {
+        smokingTotal += Math.abs(numValue);
+        smokingCount++;
+      } else {
+        const cleanFeature = labelMap[feature] || feature
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, l => l.toUpperCase());
+
+        entries.push({
           feature: cleanFeature,
-          originalFeature: feature, // Keep original for tooltip
-          value: typeof value === 'number' ? value : 0,
-          absValue: Math.abs(typeof value === 'number' ? value : 0),
-        };
-      })
+          originalFeature: feature,
+          value: numValue,
+          absValue: Math.abs(numValue),
+        });
+      }
+    });
+
+    // Add consolidated smoking
+    if (smokingCount > 0) {
+      entries.push({
+        feature: 'Smoking Impact',
+        originalFeature: 'smoking_status',
+        value: smokingTotal,
+        absValue: smokingTotal,
+      });
+    }
+
+    return entries
       .sort((a, b) => b.absValue - a.absValue)
-      .slice(0, 8); // Top 8 features for better readability
+      .slice(0, 6);
   }, [shapValues]);
 
   if (!shapValues || typeof shapValues !== 'object') {

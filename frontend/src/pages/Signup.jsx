@@ -39,9 +39,9 @@ const Signup = () => {
             }
         } catch (err) {
             setError(
-                err.response?.data?.username?.[0] ||
-                err.response?.data?.email?.[0] ||
-                err.response?.data?.password?.[0] ||
+                err.response?.data?.msg ||
+                err.response?.data?.error ||
+                err.response?.data?.message ||
                 "Signup failed. Please try again."
             );
         } finally {

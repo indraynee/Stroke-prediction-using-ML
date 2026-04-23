@@ -11,7 +11,7 @@ class PredictionHistory:
     """Model for prediction history records."""
 
     @staticmethod
-    def save(user_id: str, input_data: dict, prediction: int, probability: float, shap_values: dict):
+    def save(user_id: str, input_data: dict, prediction: int, probability: float, shap_values: dict, suggestions: list = None):
         """Save a prediction to history."""
         record = {
             "user": user_id,
@@ -28,6 +28,7 @@ class PredictionHistory:
             "prediction": prediction,
             "probability": probability,
             "shap_values": shap_values,
+            "suggestions": suggestions or [],
             "created_at": datetime.datetime.utcnow()
         }
         result = _collection.insert_one(record)

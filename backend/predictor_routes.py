@@ -28,7 +28,8 @@ def predict():
         input_data=data,
         prediction=result['prediction'],
         probability=result['probability'],
-        shap_values=result['shap_values']
+        shap_values=result['shap_values'],
+        suggestions=result['suggestions']
     )
 
     # Response format: prediction, probability, shap_values, suggestions, prediction_id

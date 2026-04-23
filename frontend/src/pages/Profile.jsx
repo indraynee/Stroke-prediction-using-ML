@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProfile, updateProfile, changePassword } from '../services/api';
-import { ArrowLeft, User, Mail, Phone, MapPin, Edit2, Save, X, Lock } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, Edit2, Save, X, Lock, LogOut } from 'lucide-react';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -293,13 +293,26 @@ const Profile = () => {
           {/* Security Section */}
           <div className="mt-8 pt-8 border-t border-[#2a2f57]">
             <h3 className="text-xl font-semibold mb-4">Security</h3>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="flex items-center gap-2 bg-[#1a1f47] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#2a2f57] transition border border-[#2a2f57]"
-            >
-              <Lock size={18} />
-              Change Password
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="flex items-center gap-2 bg-[#1a1f47] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#2a2f57] transition border border-[#2a2f57]"
+              >
+                <Lock size={18} />
+                Change Password
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  localStorage.removeItem('isLoggedIn');
+                  navigate('/login');
+                }}
+                className="flex items-center gap-2 bg-red-500/10 text-red-400 px-6 py-2 rounded-lg font-medium hover:bg-red-500/20 transition border border-red-500/30"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
