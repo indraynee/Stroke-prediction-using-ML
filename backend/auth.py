@@ -20,7 +20,10 @@ def register():
         return jsonify({"msg": "Username and password required"}), 400
 
     if users_collection.find_one({"username": username}):
-        return jsonify({"msg": "User already exists"}), 400
+        return jsonify({"msg": "Username already exists"}), 400
+
+    if email and users_collection.find_one({"email": email}):
+        return jsonify({"msg": "Email already registered"}), 400
 
     hashed_password = generate_password_hash(password)
     user_id = users_collection.insert_one({
@@ -73,7 +76,10 @@ def login():
 @jwt_required()
 def get_me():
     current_user = get_jwt_identity()
-    user = users_collection.find_one({"username": current_user}, {"password": 0})
+    user = users_collection.find_one(
+        {"$or": [{"username": current_user}, {"email": current_user}]},
+        {"password": 0}
+    )
     if user:
         user['_id'] = str(user['_id'])
         return jsonify(user), 200
@@ -84,7 +90,10 @@ def get_me():
 def get_profile():
     """Get current user's profile"""
     current_user = get_jwt_identity()
-    user = users_collection.find_one({"username": current_user}, {"password": 0})
+    user = users_collection.find_one(
+        {"$or": [{"username": current_user}, {"email": current_user}]},
+        {"password": 0}
+    )
     if user:
         user['_id'] = str(user['_id'])
         return jsonify(user), 200
@@ -105,12 +114,15 @@ def update_profile():
         return jsonify({"msg": "No valid fields to update"}), 400
     
     result = users_collection.update_one(
-        {"username": current_user},
+        {"$or": [{"username": current_user}, {"email": current_user}]},
         {"$set": update_data}
     )
     
     if result.modified_count > 0 or result.matched_count > 0:
-        user = users_collection.find_one({"username": current_user}, {"password": 0})
+        user = users_collection.find_one(
+            {"$or": [{"username": current_user}, {"email": current_user}]},
+            {"password": 0}
+        )
         user['_id'] = str(user['_id'])
         return jsonify({"msg": "Profile updated successfully", "user": user}), 200
     
@@ -129,7 +141,9 @@ def change_password():
     if not old_password or not new_password:
         return jsonify({"msg": "Old and new password required"}), 400
     
-    user = users_collection.find_one({"username": current_user})
+    user = users_collection.find_one(
+        {"$or": [{"username": current_user}, {"email": current_user}]}
+    )
     if not user:
         return jsonify({"msg": "User not found"}), 404
     
@@ -138,7 +152,7 @@ def change_password():
     
     hashed_password = generate_password_hash(new_password)
     users_collection.update_one(
-        {"username": current_user},
+        {"$or": [{"username": current_user}, {"email": current_user}]},
         {"$set": {"password": hashed_password}}
     )
     
